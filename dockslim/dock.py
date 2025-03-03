@@ -4,7 +4,7 @@ import subprocess
 
 from rdkit import Chem
 from meeko import MoleculePreparation, PDBQTWriterLegacy
-from openbabel import pybel
+from openbabel import pybel, openbabel as ob
 import numpy as np
 from vina import Vina
 
@@ -149,7 +149,38 @@ def pdb_to_pdbqt(pdb_file: str, out_pdbqt_file: str):
         lines = rdkit2pdbqt.MolToPDBQTBlock(receptor_mol, False, False, True)
         # 将PDBQT文件写入文件
         f.write(lines)
+def pdb_to_pdbqt_with_pybel(pdb_file: str, pdbqt_file: str):
+    '''
+    将PDB文件转换为PDBQT文件
+    :param pdb_file: PDB文件路径
+    :param out_pdbqt_file: 输出PDBQT文件路径
+    :return:
+    '''
+    
+    # 确保输入输出路径为字符串
+    pdb_file = str(pdb_file)
+    pdbqt_file = str(pdbqt_file)
 
+    # 使用低层API确保兼容性
+    conv = ob.OBConversion()
+    conv.SetInFormat("pdb")
+    conv.SetOutFormat("pdbqt")
+
+    # 读取分子
+    mol = ob.OBMol()
+    if not conv.ReadFile(mol, pdb_file):
+        raise IOError(f"无法读取文件: {pdb_file}")
+
+    # 添加氢原子
+    mol.AddHydrogens()
+
+    # 计算Gasteiger电荷
+    #charge_model = ob.OBChargeModel.FindType("GASTEIGER")
+    #charge_model.ComputeCharges(mol)
+
+    # 写入文件
+    if not conv.WriteFile(mol, pdbqt_file):
+        raise IOError(f"无法写入文件: {pdbqt_file}")
 
 def run_lepro(complex_pdb: str, out_pdb_file: str):
     '''
@@ -232,7 +263,9 @@ if __name__ == '__main__':
 
     run_lepro("tests/2F0Z1.pdb", protein_file)
 
-    # protein_file,ligand_file = split_protein_ligand(protein_file)
+    # protein_file,_ = split_protein_ligand("tests/2F0Z1.pdb")
+    
+    #pdb_to_pdbqt_with_pybel(protein_file, protein_pdbqt)
     pdb_to_pdbqt(protein_file, protein_pdbqt)
     mol2_to_pdbqt(ligand_file, ligand_pdbqt)
 

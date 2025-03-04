@@ -1,12 +1,53 @@
 from pathlib import Path
-import rdkit2pdbqt
 import subprocess
 
 from rdkit import Chem
-from meeko import MoleculePreparation, PDBQTWriterLegacy
+import rdkit2pdbqt
 from openbabel import pybel, openbabel as ob
 import numpy as np
 from vina import Vina
+
+import sys
+import logging as log
+
+
+def setup_logging(log_file: str, log_level: int = log.INFO):
+    """
+    配置全局日志设置
+
+    参数:
+        log_file (str): 日志文件路径（默认：当前目录的 app.log）
+        log_level (int): 日志级别（默认：INFO）
+    """
+    # 创建日志目录（如果不存在）
+    log_path = Path(log_file).parent
+    log_path.mkdir(parents=True, exist_ok=True)
+
+    # 定义日志格式
+    formatter = log.Formatter(
+        fmt='%(asctime)s - %(levelname)-8s - %(name)-15s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+
+    # 获取 root logger
+    logger = log.getLogger()
+    logger.setLevel(log_level)
+
+    # 避免重复添加 handler
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    # 创建文件 handler 并设置格式
+    file_handler = log.FileHandler(log_file, encoding='utf-8')
+    file_handler.setFormatter(formatter)
+
+    # 创建控制台 handler 并设置格式
+    console_handler = log.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+
+    # 添加 handlers
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
 
 
 def get_hetatm_docking_box(pdb_file):
@@ -134,54 +175,6 @@ def split_protein_ligand(pdb_file):
     return protein_output, ligand_output
 
 
-def pdb_to_pdbqt(pdb_file: str, out_pdbqt_file: str):
-    '''
-    将PDB文件转换为PDBQT文件
-    :param pdb_file: PDB文件路径
-    :param out_pdbqt_file: 输出PDBQT文件路径
-    :return:
-    '''
-    # 从PDB文件中读取拓扑结构
-    receptor_mol = Chem.MolFromPDBFile(pdb_file, removeHs=False)
-    # 将拓扑结构转换为PDBQT文件
-    with open(out_pdbqt_file, 'w') as f:
-        # 将拓扑结构转换为PDBQT文件
-        lines = rdkit2pdbqt.MolToPDBQTBlock(receptor_mol, False, False, True)
-        # 将PDBQT文件写入文件
-        f.write(lines)
-def pdb_to_pdbqt_with_pybel(pdb_file: str, pdbqt_file: str):
-    '''
-    将PDB文件转换为PDBQT文件
-    :param pdb_file: PDB文件路径
-    :param out_pdbqt_file: 输出PDBQT文件路径
-    :return:
-    '''
-    
-    # 确保输入输出路径为字符串
-    pdb_file = str(pdb_file)
-    pdbqt_file = str(pdbqt_file)
-
-    # 使用低层API确保兼容性
-    conv = ob.OBConversion()
-    conv.SetInFormat("pdb")
-    conv.SetOutFormat("pdbqt")
-
-    # 读取分子
-    mol = ob.OBMol()
-    if not conv.ReadFile(mol, pdb_file):
-        raise IOError(f"无法读取文件: {pdb_file}")
-
-    # 添加氢原子
-    mol.AddHydrogens()
-
-    # 计算Gasteiger电荷
-    #charge_model = ob.OBChargeModel.FindType("GASTEIGER")
-    #charge_model.ComputeCharges(mol)
-
-    # 写入文件
-    if not conv.WriteFile(mol, pdbqt_file):
-        raise IOError(f"无法写入文件: {pdbqt_file}")
-
 def run_lepro(complex_pdb: str, out_pdb_file: str):
     '''
     将复合物PDB文件转换为lepro提供的输入文件
@@ -199,30 +192,21 @@ def run_lepro(complex_pdb: str, out_pdb_file: str):
     workdir.joinpath("pro.pdb").rename(out_pdb_file)
 
 
-def mol2_to_pdbqt(mol2_path: str, pdbqt_path: str) -> None:
-
-    # 读取mol2文件
-    mol = Chem.MolFromMol2File(mol2_path, sanitize=True, removeHs=False)
-    preparator = MoleculePreparation()
-    mol_setups = preparator.prepare(mol)
-
-    # 初始化PDBQT写入器
-    writer = PDBQTWriterLegacy()
-
-    # 处理每个MoleculeSetup实例
-    for setup in mol_setups:
-        # 写入文件
-        pdbqt_data = writer.write_string(setup)
-
-        # 如果是元组，合并为字符串（例如用换行符连接）
-        if isinstance(pdbqt_data, tuple):
-            pdbqt_str = pdbqt_data[0]  # 假设元组元素均为字符串
-        else:
-            pdbqt_str = pdbqt_data
-
-        # 写入PDBQT文件
-        with open(pdbqt_path, 'w') as f:
-            f.write(pdbqt_str)
+def pdb_to_pdbqt(pdb_file: str, out_pdbqt_file: str):
+    '''
+    将PDB文件转换为PDBQT文件
+    :param pdb_file: PDB文件路径
+    :param out_pdbqt_file: 输出PDBQT文件路径
+    :return:
+    '''
+    # 从PDB文件中读取拓扑结构
+    receptor_mol = Chem.MolFromPDBFile(pdb_file, removeHs=False)
+    # 将拓扑结构转换为PDBQT文件
+    with open(out_pdbqt_file, 'w') as f:
+        # 将拓扑结构转换为PDBQT文件
+        lines = rdkit2pdbqt.MolToPDBQTBlock(receptor_mol, False, False, True)
+        # 将PDBQT文件写入文件
+        f.write(lines)
 
 
 def pdbqt_to_sdf(pdbqt_file: str = None, output: str = None):
@@ -249,29 +233,43 @@ def pdbqt_to_sdf(pdbqt_file: str = None, output: str = None):
     out.close()
 
 
-if __name__ == '__main__':
+def convert(input_file: str, input_format, out_file: str, out_format: str, add_h=True):
+
+    # 由配体的pdb文件,使用 pybel库 转化格式得到mol2,sdf文件，到 './protein_files' 目录下
+    mol = [m for m in pybel.readfile(
+        filename=input_file, format=input_format)][0]
+    if add_h:
+        mol.addh()  # 加氢
+    mol.write(format=out_format, filename=out_file, overwrite=True)
+
+
+def vina_dock(complex_file, ligand_file, outdir):
+
+    ligand_file_path = Path(ligand_file)
+    workdir = Path(outdir).joinpath(ligand_file_path.stem)
+    workdir.mkdir(parents=True, exist_ok=True)
+
+    protein_file = workdir.joinpath("protein.pdb")
+    protein_pdbqt = workdir.joinpath("protein.pdbqt")
+    ligand_pdbqt = workdir.joinpath("ligand.pdbqt")
+    dockout_pdbqt = workdir.joinpath("dockout.pdbqt")
+    dockout_sdf = workdir.joinpath("dockout.sdf")
+
+    log.info('Vina dock starts.\n')
+    log.info(f"Workdir: {workdir}")
     # 示例用法
-    center, size = get_hetatm_docking_box("tests/2F0Z1.pdb")
-    print("中心坐标:", center)
-    print("盒子尺寸:", size)
+    center, size = get_hetatm_docking_box(complex_file)
+    log.info(f"box center coordinate: {center}" )
+    log.info(f"box size coordinate: {size}")
 
-    protein_file = "tests/protein.pdb"
-    protein_pdbqt = "tests/2F0Z1.pdbqt"
-    ligand_file = "tests/D001-200081531.mol2"
-    ligand_pdbqt = "tests/D001-200081531.pdbqt"
-    dockout_pdbqt = "tests/D001-200081531_dockout.pdbqt"
+    run_lepro(complex_file, protein_file)
 
-    run_lepro("tests/2F0Z1.pdb", protein_file)
-
-    # protein_file,_ = split_protein_ligand("tests/2F0Z1.pdb")
-    
-    #pdb_to_pdbqt_with_pybel(protein_file, protein_pdbqt)
     pdb_to_pdbqt(protein_file, protein_pdbqt)
-    mol2_to_pdbqt(ligand_file, ligand_pdbqt)
+    convert(str(ligand_file), "mol2", str(ligand_pdbqt), "pdbqt")
 
     v = Vina()
-    v.set_receptor(protein_pdbqt)
-    v.set_ligand_from_file(ligand_pdbqt)
+    v.set_receptor(str(protein_pdbqt))
+    v.set_ligand_from_file(str(ligand_pdbqt))
     v.compute_vina_maps(center=[center['center_x'],
                                 center['center_y'],
                                 center['center_z']],
@@ -280,6 +278,37 @@ if __name__ == '__main__':
                                   size['size_z']])
     # Dock the ligand
     v.dock()
-    v.write_poses(dockout_pdbqt, n_poses=10, overwrite=True)
+    v.write_poses(str(dockout_pdbqt), overwrite=True)
 
-    pdbqt_to_sdf(dockout_pdbqt, "tests/D001-200081531_dockout.sdf")
+    # 将pdbqt文件转换为sdf文件
+    pdbqt_to_sdf(str(dockout_pdbqt), str(dockout_sdf))
+    log.info(f'Vina ends.\n')
+    log.info(f'Vina dock output is {dockout_sdf}\n')
+
+
+def batch_vina_dock(complex_file, ligand_dir, outdir):
+    for i, ligand_file in enumerate(Path(ligand_dir).iterdir()):
+        if ligand_file.suffix != ".mol2":
+            continue
+
+        vina_dock(complex_file, ligand_file, outdir)
+        log.info(f'{i+1} ligands have been docked.\n')
+
+
+if __name__ == '__main__':
+    import argparse
+    parser = argparse.ArgumentParser(description='Vina docking')
+    parser.add_argument("-c", '--complex', type=str,
+                        help='complex file', required=True)
+    parser.add_argument("-l", '--ligand', type=str,
+                        help='ligand file or ligand directory', required=True)
+    parser.add_argument("-o", '--outdir', type=str,
+                        help='output directory', required=True)
+    args = parser.parse_args()
+
+    setup_logging(f"{args.outdir}/dock.log")
+
+    if Path(args.ligand).is_dir():
+        batch_vina_dock(args.complex, args.ligand, args.outdir)
+    else:
+        vina_dock(args.complex, args.ligand, args.outdir)

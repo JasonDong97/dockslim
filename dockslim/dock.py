@@ -255,7 +255,7 @@ def vina_dock(complex_file, ligand_file, outdir):
     dockout_pdbqt = workdir.joinpath("dockout.pdbqt")
     dockout_sdf = workdir.joinpath("dockout.sdf")
 
-    log.info('Vina dock starts.\n')
+    log.info('Vina dock starts.')
     log.info(f"Workdir: {workdir}")
     # 示例用法
     center, size = get_hetatm_docking_box(complex_file)
@@ -282,8 +282,8 @@ def vina_dock(complex_file, ligand_file, outdir):
 
     # 将pdbqt文件转换为sdf文件
     pdbqt_to_sdf(str(dockout_pdbqt), str(dockout_sdf))
-    log.info(f'Vina ends.\n')
-    log.info(f'Vina dock output is {dockout_sdf}\n')
+    log.info(f'Vina ends.')
+    log.info(f'Vina dock output is {dockout_sdf}')
 
 
 def batch_vina_dock(complex_file, ligand_dir, outdir):

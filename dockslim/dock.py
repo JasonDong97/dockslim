@@ -17,7 +17,7 @@ def setup_logging(log_file: str, log_level: int = log.INFO):
 
     参数:
         log_file (str): 日志文件路径（默认：当前目录的 app.log）
-        log_level (int): 日志级别（默认：INFO）
+        log_level (int): 日志级别(默认:INFO)
     """
     # 创建日志目录（如果不存在）
     log_path = Path(log_file).parent
@@ -25,7 +25,7 @@ def setup_logging(log_file: str, log_level: int = log.INFO):
 
     # 定义日志格式
     formatter = log.Formatter(
-        fmt='%(asctime)s - %(levelname)-8s - %(name)-15s - %(message)s',
+        fmt='%(asctime)s - %(levelname)-4s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
@@ -259,7 +259,7 @@ def vina_dock(complex_file, ligand_file, outdir):
     log.info(f"Workdir: {workdir}")
     # 示例用法
     center, size = get_hetatm_docking_box(complex_file)
-    log.info(f"box center coordinate: {center}" )
+    log.info(f"box center coordinate: {center}")
     log.info(f"box size coordinate: {size}")
 
     run_lepro(complex_file, protein_file)
@@ -286,7 +286,7 @@ def vina_dock(complex_file, ligand_file, outdir):
     log.info(f'Vina dock output is {dockout_sdf}')
 
 
-def batch_vina_dock(complex_file, ligand_dir, outdir):
+def vina_dock_batch(complex_file, ligand_dir, outdir):
     for i, ligand_file in enumerate(Path(ligand_dir).iterdir()):
         if ligand_file.suffix != ".mol2":
             continue
@@ -309,6 +309,6 @@ if __name__ == '__main__':
     setup_logging(f"{args.outdir}/dock.log")
 
     if Path(args.ligand).is_dir():
-        batch_vina_dock(args.complex, args.ligand, args.outdir)
+        vina_dock_batch(args.complex, args.ligand, args.outdir)
     else:
         vina_dock(args.complex, args.ligand, args.outdir)

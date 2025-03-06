@@ -67,7 +67,6 @@ class MQLogger(BaseLogger):
         self.rabbit_client = rabbit_client
 
     def info(self, text):
-        self.logger.info(text)
         if self.reply_to:
             self.rabbit_client.send(
                 exchange_name="",

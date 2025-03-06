@@ -1,9 +1,8 @@
 # 服务端代码（consumer_direct.py）
-from http import client
-from numpy import equal
 import pika
 import uuid
 import json
+import logging as log
 
 
 class RabbitClient:
@@ -56,7 +55,7 @@ class RabbitClient:
         self.channel.start_consuming()
 
     def send(self, exchange_name, routing_key, body, properties=None):
-        print(
+        log.info(
             f" [x] ExchangeName: {exchange_name}, RoutingKey: {routing_key}, Sending message: {body}"
         )
 
@@ -78,16 +77,19 @@ class RabbitClient:
 
         def receive_callabck(channel, method, props: pika.BasicProperties, body: bytes):
             message = json.loads(body)
-            
-            if props.correlation_id == correlation_id:
-                print(f"correlation_id: {correlation_id}, Received message: {message}")
 
-                if message.__eq__("done") :
+            if props.correlation_id == correlation_id :
+                if isinstance(message,str):
+                    print(message)
+
+                if message == "done":
                     self.channel.stop_consuming(consumer_tag=correlation_id)
                     method_frame = self.channel.queue_delete(callback_queue)
                     print(f"message is done, stop consuming.")
-                    print(f"message is done, delete queue, method_frame: {method_frame}")
-                
+                    print(
+                        f"message is done, delete queue, method_frame: {method_frame}"
+                    )
+
         self.channel.basic_consume(
             queue=callback_queue,
             on_message_callback=receive_callabck,

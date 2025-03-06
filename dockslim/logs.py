@@ -2,6 +2,8 @@ from pathlib import Path
 import logging
 import sys
 
+import pika
+
 from rabbitmq import RabbitClient
 
 
@@ -53,8 +55,12 @@ class BaseLogger:
 
 
 class MQLogger(BaseLogger):
+
     def set_reply_to(self, reply_to):
         self.reply_to = reply_to
+
+    def set_correlation_id(self, correlation_id):
+        self.correlation_id = correlation_id
 
     def __init__(self, rabbit_client: RabbitClient):
         super().__init__("/var/logs/docking.log", logging.INFO)
@@ -63,4 +69,9 @@ class MQLogger(BaseLogger):
     def info(self, text):
         self.logger.info(text)
         if self.reply_to:
-            self.rabbit_client.send(exchange_name='', routing_key=self.reply_to, body=text)
+            self.rabbit_client.send(
+                exchange_name="",
+                routing_key=self.reply_to,
+                body=text,
+                properties=pika.BasicProperties(correlation_id=self.correlation_id),
+            )

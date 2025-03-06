@@ -295,12 +295,13 @@ class DockingListener(RabbitClient):
         body = json.loads(body)
         print(f"Received message: {body}")
         if body["start"]:
-            self.run_demo(props.reply_to)
+            global log
+            log.set_reply_to(props.reply_to)
+            log.set_correlation_id(props.correlation_id)
+            self.run_demo()
+            log.info("done")
 
-    def run_demo(self, routing_key):
-        global log
-        log.set_reply_to(routing_key)
-
+    def run_demo(self):
         examples_path = Path(__file__).parent.parent.joinpath("examples")
         complex_pdb = examples_path.joinpath("2F0Z1.pdb")
         ligand = examples_path.joinpath("ligands")

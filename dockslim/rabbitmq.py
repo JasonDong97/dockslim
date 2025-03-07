@@ -55,9 +55,10 @@ class RabbitClient:
         self.channel.start_consuming()
 
     def send(self, exchange_name, routing_key, body, properties=None):
-        log.info(
-            f" [x] ExchangeName: {exchange_name}, RoutingKey: {routing_key}, Sending message: {body}"
-        )
+        if isinstance(body, str):
+            log.info(
+                f" [x] ExchangeName: {exchange_name}, RoutingKey: {routing_key}, Sending message: {body}"
+            )
 
         self.channel.basic_publish(
             exchange_name, routing_key, json.dumps(body), properties

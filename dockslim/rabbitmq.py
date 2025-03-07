@@ -16,7 +16,7 @@ class RabbitClient:
         """
         初始化RabbitMQ客户端。
 
-        参数:
+        参数:e
         - host: RabbitMQ服务器的主机地址。
         - port: RabbitMQ服务器的端口号。
         - username: 用于连接RabbitMQ服务器的用户名。

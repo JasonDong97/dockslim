@@ -4,6 +4,9 @@ import argparse
 import json
 import base64
 import rdkit2pdbqt
+import time
+import socket
+import shutil
 
 from pathlib import Path
 from rdkit import Chem
@@ -13,7 +16,6 @@ from logs import BaseLogger, MQLogger
 from os import environ as env
 from rabbitmq import RabbitClient
 from pika import BasicProperties
-
 
 class VinaDock:
     def __init__(self, complex_pdb, ligand, outdir):
@@ -136,7 +138,6 @@ class VinaDock:
         mol.write(format=out_format, filename=out_file, overwrite=True)
 
     def docking(self, ligand_file):
-        complex_file = self.complex_pdb
 
         ligand_file_path = Path(ligand_file)
         workdir = Path(self.outdir).joinpath(ligand_file_path.stem)
@@ -147,15 +148,18 @@ class VinaDock:
         ligand_pdbqt = workdir.joinpath("ligand.pdbqt")
         dockout_pdbqt = workdir.joinpath("dockout.pdbqt")
         dockout_sdf = workdir.joinpath("dockout.sdf")
+
+        protein_name = Path(self.complex_pdb).name
         ligand_file_name = ligand_file_path.name
 
-        log.info("Vina dock is starting...\n ")
-        log.info(f"Workdir: {workdir}")
-        # 示例用法
+        log.info(f"{ligand_file_name} is docking with {protein_name}, Please wait...")
+        start_time = time.time()
 
-        # center, size = self.get_docking_box(complex_file)
+        # log.info(f"Workdir: {workdir}")
 
+        # 将pdb文件转换为pdbqt文件
         self.pdb_to_pdbqt(self.protein_file, protein_pdbqt)
+        # 将mol2文件转换为pdbqt文件
         self.convert(str(ligand_file), "mol2", str(ligand_pdbqt), "pdbqt")
 
         v = Vina()
@@ -163,14 +167,17 @@ class VinaDock:
         v.set_ligand_from_file(str(ligand_pdbqt))
         v.compute_vina_maps(center=self.center, box_size=self.box_size)
         # Dock the ligand
-        log.info(f"{ligand_file_name} is docking with {self.protein_file.name}, Please wait...\n")
+
         v.dock()
         v.write_poses(str(dockout_pdbqt), overwrite=True)
 
         # 将pdbqt文件转换为sdf文件
         self.pdbqt_to_sdf(str(dockout_pdbqt), str(dockout_sdf))
-        log.info(f"Vina end. ")
-        #log.info(f"Vina dock output is {dockout_sdf}")
+
+        log.info(
+            f"{ligand_file_name} is docked with {protein_name}, time comsuming: {time.time() - start_time} s. "
+        )
+        # log.info(f"Vina dock output is {dockout_sdf}")
         log.info(
             {
                 "ligand_name": ligand_file_path.stem,
@@ -179,12 +186,11 @@ class VinaDock:
         )
 
     def docking_batch(self):
-        for i, ligand_file in enumerate(Path(self.ligand).iterdir()):
-            if ligand_file.suffix != ".mol2":
-                continue
-
+        ligand_files = [p for p in Path(self.ligand).iterdir() if p.suffix == ".mol2"]
+        for i in range(len(ligand_files)):
+            ligand_file = ligand_files[i]
+            log.info(f"{'-' * 50} ({i+1}/{len(ligand_files)}) {'-' * 50}")
             self.docking(ligand_file)
-            log.info(f"{i+1} ligands have been docked.\n")
 
 
 class DockingListener(RabbitClient):
@@ -203,22 +209,27 @@ class DockingListener(RabbitClient):
         )
 
     def on_message(self, channel, method, props: BasicProperties, body):
-        body = json.loads(body)
-        print(f"Received message: {body}")
-        if body["start"]:
-            global log
-            log.set_reply_to(props.reply_to)
-            log.set_correlation_id(props.correlation_id)
-            self.run_demo()
-            log.info("done")
+        global log
+        log.set_reply_to(props.reply_to)
+        log.set_correlation_id(props.correlation_id)
+        
+        try:
+            body = json.loads(body)
+            log.info(f"node: {socket.gethostname()}, received message: {body}")
+            if isinstance(body, dict) and body["start"]:
+                self.run_demo()
+        except Exception as e:
+            log.info(f"node: {socket.gethostname()}, error: {e}")
+            
+        log.info("done")
 
     def run_demo(self):
         examples_path = Path(__file__).parent.parent.joinpath("examples")
         complex_pdb = examples_path.joinpath("2F0Z1.pdb")
         ligand = examples_path.joinpath("ligands")
         outdir = examples_path.joinpath("outdir")
-
         VinaDock(complex_pdb, ligand, outdir).docking_batch()
+        shutil.rmtree(outdir)
 
 
 def cli(complex_pdb, ligand, outdir):

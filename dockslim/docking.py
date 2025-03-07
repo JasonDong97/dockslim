@@ -1,3 +1,4 @@
+#!python
 import subprocess
 import argparse
 import json
@@ -20,11 +21,11 @@ class VinaDock:
         self.ligand = ligand
         self.outdir = outdir
 
-        log.info(f"complex pdb: {complex_pdb}")
+        log.info(f"Complex pdb: {complex_pdb}")
         self.run_lepro(complex_pdb)
 
-        log.info(f"box center coordinate: {self.center}")
-        log.info(f"box size coordinate: {self.box_size}")
+        log.info(f"Box center coordinate: {self.center}. ")
+        log.info(f"Box size coordinate: {self.box_size}. \n")
 
     def run_lepro(self, complex_pdb: str):
         """
@@ -146,8 +147,9 @@ class VinaDock:
         ligand_pdbqt = workdir.joinpath("ligand.pdbqt")
         dockout_pdbqt = workdir.joinpath("dockout.pdbqt")
         dockout_sdf = workdir.joinpath("dockout.sdf")
+        ligand_file_name = ligand_file_path.name
 
-        log.info("Vina dock starts.")
+        log.info("Vina dock is starting...\n ")
         log.info(f"Workdir: {workdir}")
         # 示例用法
 
@@ -161,13 +163,14 @@ class VinaDock:
         v.set_ligand_from_file(str(ligand_pdbqt))
         v.compute_vina_maps(center=self.center, box_size=self.box_size)
         # Dock the ligand
+        log.info(f"{ligand_file_name} is docking with {self.protein_file.name}, Please wait...\n")
         v.dock()
         v.write_poses(str(dockout_pdbqt), overwrite=True)
 
         # 将pdbqt文件转换为sdf文件
         self.pdbqt_to_sdf(str(dockout_pdbqt), str(dockout_sdf))
-        log.info(f"Vina ends.")
-        log.info(f"Vina dock output is {dockout_sdf}")
+        log.info(f"Vina end. ")
+        #log.info(f"Vina dock output is {dockout_sdf}")
         log.info(
             {
                 "ligand_name": ligand_file_path.stem,

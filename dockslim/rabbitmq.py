@@ -63,7 +63,7 @@ class RabbitClient:
             exchange_name, routing_key, json.dumps(body), properties
         )
 
-    def send_and_receive(self, exchange_name, routing_key, body, time_limit=None):
+    def send_and_wait_reply(self, exchange_name, routing_key, body, on_message_process_callback):
         correlation_id = str(uuid.uuid4())
         callback_queue = self.channel.queue_declare("", auto_delete=True).method.queue
         self.send(
@@ -74,14 +74,18 @@ class RabbitClient:
                 reply_to=callback_queue, correlation_id=correlation_id
             ),
         )
+        
 
-        def receive_callabck(channel, method, props: pika.BasicProperties, body: bytes):
+        def reply_callback(channel, method, props: pika.BasicProperties, body: bytes):
             message = json.loads(body)
 
             if props.correlation_id == correlation_id :
                 if isinstance(message,str):
                     print(message)
-
+                    
+                elif isinstance(message,dict) and on_message_process_callback:
+                   on_message_process_callback(message)
+                
                 if message == "done":
                     self.channel.stop_consuming(consumer_tag=correlation_id)
                     method_frame = self.channel.queue_delete(callback_queue)
@@ -92,12 +96,11 @@ class RabbitClient:
 
         self.channel.basic_consume(
             queue=callback_queue,
-            on_message_callback=receive_callabck,
+            on_message_callback=reply_callback,
             auto_ack=True,
             consumer_tag=correlation_id,
         )
         self.channel.start_consuming()
-        # self.channel.connection.process_data_events(time_limit=time_limit)
 
 
 if __name__ == "__main__":
@@ -110,8 +113,11 @@ if __name__ == "__main__":
         password=env["RABBITMQ_PASSWORD"],
     )
 
-    client.send_and_receive(
+    client.send_and_wait_reply(
         exchange_name="pipeline",
         routing_key="pipeline.dock",
         body={"start": True},
     )
+    
+    import base64
+    base64.decode()

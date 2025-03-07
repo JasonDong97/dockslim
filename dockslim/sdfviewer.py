@@ -1,68 +1,50 @@
 from rdkit import Chem
 import py3Dmol
-import ipywidgets as widgets
-from IPython.display import display
+from ipywidgets import interact, Dropdown
 
-def visualize_sdf_conformations(sdf_file):
-    # 读取SDF文件
-    suppl = Chem.SDMolSupplier(sdf_file)
-    mols = [mol for mol in suppl if mol is not None]
-    
-    if not mols:
-        print("未找到有效分子，请检查SDF文件。")
+
+def view(file_path):
+
+    # 读取所有构象并修复化合价
+    supplier = Chem.SDMolSupplier(file_path, sanitize=False)
+    conformers = []
+    scores = []
+
+    for mol in supplier:
+        if mol:
+            try:
+                mol = Chem.AddHs(mol)
+                conformers.append(mol)
+                scores.append(mol.GetProp("Score"))
+            except Exception as e:
+                print(f"跳过无效分子: {str(e)}")
+                continue  # 忽略无法处理的分子
+
+    if not conformers:
+        print("⚠️ 未找到有效分子！请检查SDF文件格式。")
         return
-    
-    # 判断构象类型（多个分子或单个分子多构象）
-    multi_mol = len(mols) > 1
-    total_confs = len(mols) if multi_mol else mols[0].GetNumConformers()
-    
-    if total_confs == 0:
-        print("分子不包含任何构象信息。")
-        return
-    
-    # 处理单构象情况
-    if total_confs == 1:
-        view = py3Dmol.view(width=400, height=300)
-        mol = mols[0] if multi_mol else mols[0]
-        view.addModel(Chem.MolToMolBlock(mol), 'sdf')
-        view.setStyle({'stick': {}})
-        view.zoomTo()
-        display(view.to_widget())  # 转换为 Widget
-        return
-    
-    # 多构象处理
-    view = py3Dmol.view(width=500, height=400)
-    
-    # 添加所有构象到视图
-    for conf_id in range(total_confs):
-        if multi_mol:
-            mb = Chem.MolToMolBlock(mols[conf_id])
-        else:
-            mb = Chem.MolToMolBlock(mols[0], confId=conf_id)
-        view.addModel(mb, 'sdf')
-    
-    view.setStyle({'stick': {}})
-    view.setModel(0)  # 初始显示第一个构象
-    view.zoomTo()
-    
-    # 创建交互控件
-    slider = widgets.IntSlider(
-        value=0,
-        min=0,
-        max=total_confs-1,
-        step=1,
-        description='选择构象:',
-        continuous_update=False
+
+    # 创建交互式可视化函数
+    def show_conformer(pose_index=0):
+        try:
+            viewer = py3Dmol.view(width=600, height=400)
+            mol_block = Chem.MolToMolBlock(conformers[pose_index])
+            viewer.addModel(mol_block, "mol")
+            viewer.setStyle({"stick": {}, "sphere": {"radius": 0.3}})
+            viewer.zoomTo()
+            viewer.show()
+            print(f"当前构象: Pose {pose_index+1}\n对接分数: {scores[pose_index]}")
+        except:
+            print("无法显示3D视图")
+
+    print(f"\n ✅ 使用下拉菜单切换不同构象的 {file_path} 3D视图\n")
+    # 生成下拉菜单选项
+    pose_options = [
+        (f"Pose {i+1} (Score: {scores[i]})", i) for i in range(len(conformers))
+    ]
+
+    # 显示交互控件
+    interact(
+        show_conformer,
+        pose_index=Dropdown(options=pose_options, value=0, description="选择构象:"),
     )
-    
-    # 构象更新回调函数
-    def update_conformer(change):
-        view.setModel(change.new)
-        view.zoomTo()
-        view.render()
-    
-    slider.observe(update_conformer, names='value')
-    
-    # 转换为 Widget 并显示
-    view_widget = view.to_widget()
-    display(widgets.VBox([slider, view_widget]))  # 使用转换后的 Widget

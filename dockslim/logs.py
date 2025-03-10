@@ -1,8 +1,10 @@
 from pathlib import Path
 import logging
 import sys
+from turtle import st
 
 import pika
+import test
 
 from rabbitmq import RabbitClient
 
@@ -51,7 +53,8 @@ class BaseLogger:
         return logger
 
     def info(self, text):
-        self.logger.info(text)
+        if isinstance(text, str):
+            self.logger.info(text)
 
 
 class MQLogger(BaseLogger):
@@ -67,6 +70,9 @@ class MQLogger(BaseLogger):
         self.rabbit_client = rabbit_client
 
     def info(self, text):
+        if isinstance(text, str):
+            self.logger.info(text)
+
         if self.reply_to:
             self.rabbit_client.send(
                 exchange_name="",

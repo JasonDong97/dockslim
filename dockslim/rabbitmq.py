@@ -2,8 +2,6 @@
 import pika
 import uuid
 import json
-import logging as log
-
 
 class RabbitClient:
     host: str

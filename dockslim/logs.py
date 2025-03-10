@@ -1,12 +1,10 @@
 from pathlib import Path
 import logging
 import sys
-from turtle import st
 
 import pika
-import test
 
-from rabbitmq import RabbitClient
+from .rabbitmq import RabbitClient
 
 
 class BaseLogger:

@@ -1,0 +1,2 @@
+# 进入对应的文件夹
+gmx mdrun -v -deffnm md

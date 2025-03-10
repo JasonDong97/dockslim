@@ -1,3 +1,8 @@
 __pycache__
 outdir
 2F0Z1_docked
+*.log
+*.cpt
+*.edr
+*.gro
+*.xtc

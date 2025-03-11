@@ -96,22 +96,3 @@ class RabbitClient:
         )
         self.channel.start_consuming()
 
-
-if __name__ == "__main__":
-    from os import environ as env
-
-    client = RabbitClient(
-        host=env["RABBITMQ_HOST"],
-        port=env["RABBITMQ_PORT"],
-        username=env["RABBITMQ_USERNAME"],
-        password=env["RABBITMQ_PASSWORD"],
-    )
-
-    client.send_and_wait_reply(
-        exchange_name="pipeline",
-        routing_key="pipeline.dock",
-        body={"start": True},
-    )
-    
-    import base64
-    base64.decode()

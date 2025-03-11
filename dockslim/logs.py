@@ -4,7 +4,7 @@ import sys
 
 import pika
 
-from .rabbitmq import RabbitClient
+from rabbitmq import RabbitClient
 
 
 class BaseLogger:

@@ -3,8 +3,10 @@ import logging
 import sys
 
 import pika
-
-from .rabbitmq import RabbitClient
+import sys
+from pathlib import Path
+sys.path.append(Path(__file__).parent.as_posix())
+from rabbitmq import RabbitClient
 
 
 class BaseLogger:

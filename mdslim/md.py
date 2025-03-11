@@ -24,6 +24,8 @@ log = MQLogger(rabbit_client=client)
 def mq_listener(ch, method, props, body):
     msg = json.loads(body)
     if isinstance(msg, dict):
+        log.set_reply_to(props.reply_to)
+        log.set_correlation_id(props.correlation_id)
         log.info(f"Receive message: {msg}")
         if msg["start"]:
             log.info("Starting demo...")
@@ -39,16 +41,26 @@ def run_demo():
         cwd=cwd,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
+        bufsize=1,
+        universal_newlines=True
     )
+    
     threading.Thread(target=log_subprocess, args=(p.stdout,)).start()
     threading.Thread(target=log_subprocess, args=(p.stderr,)).start()
+    
     p.wait()
+    
+    #t1.join()
+    #t2.join()
     
 
 
 def log_subprocess(stream):
-    for line in iter(stream.readline, b""):
-        log.info(line.decode("utf-8").strip())
+    while True:
+        line = stream.readline()
+        if not line:
+            break
+        log.info(line.strip())
 
 
 if __name__ == '__main__' :

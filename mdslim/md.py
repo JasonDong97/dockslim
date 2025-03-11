@@ -2,7 +2,7 @@ import cmd
 import sys
 from pathlib import Path
 
-sys.path.append(Path(__file__).parent.parent)
+sys.path.append(Path(__file__).parent.parent.as_posix())
 from dockslim.rabbitmq import RabbitClient
 from dockslim.logs import MQLogger
 from os import environ as env

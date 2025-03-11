@@ -3,6 +3,7 @@ import pika
 import uuid
 import json
 
+
 class RabbitClient:
     host: str
     port: int
@@ -49,7 +50,9 @@ class RabbitClient:
         self.channel.basic_qos(prefetch_count=1)
         self.channel.basic_consume(queue_name, on_message_callback, auto_ack)
 
-        print(" [*] Waiting for messages. To exit press CTRL+C")
+        print(
+            f" [*] Waiting for messages. excange name: {exchange_name}, routing key: {routing_key}, queue name: {queue_name}, To exit press CTRL+C"
+        )
         self.channel.start_consuming()
 
     def send(self, exchange_name, routing_key, body, properties=None):
@@ -57,7 +60,9 @@ class RabbitClient:
             exchange_name, routing_key, json.dumps(body), properties
         )
 
-    def send_and_wait_reply(self, exchange_name, routing_key, body, on_message_process_callback):
+    def send_and_wait_reply(
+        self, exchange_name, routing_key, body, on_message_process_callback
+    ):
         correlation_id = str(uuid.uuid4())
         callback_queue = self.channel.queue_declare("", auto_delete=True).method.queue
         self.send(
@@ -68,18 +73,17 @@ class RabbitClient:
                 reply_to=callback_queue, correlation_id=correlation_id
             ),
         )
-        
 
         def reply_callback(channel, method, props: pika.BasicProperties, body: bytes):
             message = json.loads(body)
 
-            if props.correlation_id == correlation_id :
-                if isinstance(message,str):
+            if props.correlation_id == correlation_id:
+                if isinstance(message, str):
                     print(message)
-                    
-                elif isinstance(message,dict) and on_message_process_callback:
-                   on_message_process_callback(message)
-                
+
+                elif isinstance(message, dict) and on_message_process_callback:
+                    on_message_process_callback(message)
+
                 if message == "done":
                     self.channel.stop_consuming(consumer_tag=correlation_id)
                     method_frame = self.channel.queue_delete(callback_queue)
@@ -95,4 +99,3 @@ class RabbitClient:
             consumer_tag=correlation_id,
         )
         self.channel.start_consuming()
-

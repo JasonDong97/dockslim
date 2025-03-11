@@ -224,7 +224,7 @@ class DockingListener(RabbitClient):
         log.info("done")
 
     def run_demo(self):
-        examples_path = Path(__file__).parent.parent.joinpath("examples")
+        examples_path = Path(__file__).parent.parent.joinpath("examples/docking")
         complex_pdb = examples_path.joinpath("2F0Z1.pdb")
         ligand = examples_path.joinpath("ligands")
         outdir = examples_path.joinpath("outdir")
